@@ -1,0 +1,11 @@
+﻿GIT
+git version 2.56.0.windows.4
+
+VISUAL STUDIO CODE
+1.103.2 6f17636121051a53c88d3e605c491d22af2ba755 x64
+
+NODE.JS
+v25.2.1
+
+NPM
+11.6.2
