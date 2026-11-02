@@ -1,0 +1,16 @@
+{
+  "name": "foodtruck-cours",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "setup": "npm ci --prefix ingredients-api && npm ci --prefix pizzas-api",
+    "start:pizzas": "npm start --prefix pizzas-api",
+    "start:ingredients": "npm start --prefix ingredients-api",
+    "test": "node --test --test-concurrency=1 --test-timeout=60000 tests/starter.test.js",
+    "test:acceptance": "node --test --test-concurrency=1 --test-timeout=60000 tests/*.acceptance.js"
+  }
+}
