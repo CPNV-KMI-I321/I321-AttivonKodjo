@@ -1,0 +1,14 @@
+services:
+  pizzas-api:
+    build: ./pizzas-api
+    ports:
+      - "${PIZZAS_PORT:-3001}:3001"
+    # TODO : environment, volume nommé, dépendance, contrôle de santé et redémarrage.
+
+  ingredients-api:
+    build: ./ingredients-api
+    ports:
+      - "${INGREDIENTS_PORT:-3002}:3002"
+    # TODO : environment, volume nommé, contrôle de santé et redémarrage.
+
+# TODO : déclarer les deux volumes nommés.
