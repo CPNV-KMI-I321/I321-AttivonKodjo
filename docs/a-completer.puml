@@ -1,3 +1,39 @@
+
 @startuml
-' TODO : produire le diagramme demandé dans le README.
+title Foodtruck - Diagrammes
+
+package "Diagramme de classes" {
+  class Pizza {
+    +id: INTEGER
+    +name: TEXT
+    +description: TEXT
+    +price: REAL
+    +imageUrl: TEXT
+  }
+
+  class Ingredient {
+    +id: INTEGER
+    +name: TEXT
+    +price: REAL
+  }
+}
+
+package "MLD" {
+  entity "pizzas" as pizzas {
+    * id : INTEGER <<PK>>
+    --
+    name : TEXT
+    description : TEXT
+    price : REAL
+    imageUrl : TEXT
+  }
+
+  entity "ingredients" as ingredients {
+    * id : INTEGER <<PK>>
+    --
+    name : TEXT
+    price : REAL
+  }
+}
+
 @enduml
