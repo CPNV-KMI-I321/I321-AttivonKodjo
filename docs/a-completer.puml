@@ -1,3 +1,131 @@
-@startuml
-' TODO : produire le diagramme demandé dans le README.
+@startuml Components
+left to right direction
+skinparam componentStyle rectangle
+
+actor "Client" as client
+
+rectangle "Pizzas API\nport 3001" as pizzasApi {
+  component "Contrôleur pizzas" as pizzasController
+  component "PizzasService" as pizzasService
+  component "IngredientsClient" as ingredientsClient
+  database "Base pizzas\nSQLite" as pizzasDb
+
+  pizzasController --> pizzasService
+  pizzasService --> pizzasDb : transaction locale\nsans appel HTTP
+  pizzasService --> ingredientsClient : ensureExist(ids)\naprès validation
+}
+
+rectangle "Frontière réseau\nHTTP" as network {
+}
+
+rectangle "Ingredients API\nport 3002" as ingredientsApi {
+  component "Contrôleur ingrédients" as ingredientsController
+  component "IngredientsService" as ingredientsService
+  database "Base ingrédients\nSQLite" as ingredientsDb
+
+  ingredientsController --> ingredientsService
+  ingredientsService --> ingredientsDb
+}
+
+client --> pizzasController : POST / PUT /api/pizzas
+ingredientsClient --> network : GET /api/ingredients/:id\ntimeout HTTP_TIMEOUT_MS
+network --> ingredientsController
+
+note right of pizzasService
+  La transaction SQL est ouverte
+  uniquement après validation HTTP.
+end note
+
+note bottom of network
+  Pizzas API ne lit jamais
+  la base Ingredients.
+end note
+@enduml
+
+@startuml CreationPizza
+actor Client
+participant "Contrôleur pizzas" as PizzasController
+participant "PizzasService" as PizzasService
+participant "IngredientsClient" as ClientHTTP
+participant "Ingredients API" as IngredientsAPI
+database "SQLite pizzas" as PizzaDB
+database "SQLite ingrédients" as IngredientDB
+
+Client -> PizzasController : POST /api/pizzas
+PizzasController -> PizzasService : create(body)
+PizzasService -> PizzasService : Valider le JSON\net ingredientIds
+
+alt Données invalides
+  PizzasService --> PizzasController : 400
+  PizzasController --> Client : 400 Bad Request
+else Données valides
+  loop Pour chaque ingrédient
+    PizzasService -> ClientHTTP : ensureExist(id)
+    ClientHTTP -> IngredientsAPI : GET /api/ingredients/:id\nAbortSignal.timeout
+    IngredientsAPI -> IngredientDB : Rechercher l'identifiant
+    IngredientDB --> IngredientsAPI : Résultat
+
+    alt Ingrédient absent
+      IngredientsAPI --> ClientHTTP : 404
+      ClientHTTP --> PizzasService : erreur métier 400
+      PizzasService --> PizzasController : 400
+      PizzasController --> Client : 400 Bad Request
+    else Service indisponible ou timeout
+      IngredientsAPI --> ClientHTTP : panne / délai dépassé
+      ClientHTTP --> PizzasService : erreur 503
+      PizzasService --> PizzasController : 503
+      PizzasController --> Client : 503 Service Unavailable
+    else Réponse HTTP 2xx invalide
+      IngredientsAPI --> ClientHTTP : JSON absent ou id différent
+      ClientHTTP --> PizzasService : erreur 503
+      PizzasService --> PizzasController : 503
+      PizzasController --> Client : 503 Service Unavailable
+    else Ingrédient valide
+      IngredientsAPI --> ClientHTTP : 200 JSON { id, name, price }
+      ClientHTTP --> PizzasService : ingrédient vérifié
+    end
+  end
+
+  PizzasService -> PizzaDB : BEGIN IMMEDIATE
+  PizzasService -> PizzaDB : Vérifier le nom NOCASE\nCréer pizza et composition
+  alt Conflit ou erreur SQLite locale
+    PizzaDB --> PizzasService : erreur
+    PizzasService -> PizzaDB : ROLLBACK
+    PizzasService --> PizzasController : 409 ou 500
+    PizzasController --> Client : 409 ou 500
+  else Succès
+    PizzaDB --> PizzasService : pizza créée
+    PizzasService -> PizzaDB : COMMIT
+    PizzasService --> PizzasController : pizza avec ingredientIds
+    PizzasController --> Client : 201 Created + Location
+  end
+end
+@enduml
+
+@startuml ModificationPizza
+actor Client
+participant "Pizzas API" as Pizzas
+participant "IngredientsClient" as ClientHTTP
+participant "Ingredients API" as Ingredients
+
+Client -> Pizzas : PUT /api/pizzas/:id
+Pizzas -> Pizzas : Valider pizza\net IDs distincts
+
+loop Chaque ingredientId
+  Pizzas -> ClientHTTP : ensureExist(id)
+  ClientHTTP -> Ingredients : GET /api/ingredients/:id
+
+  alt 404
+    Ingredients --> ClientHTTP : 404
+    ClientHTTP --> Pizzas : 400
+  else Panne / timeout / JSON invalide
+    Ingredients --> ClientHTTP : indisponibilité
+    ClientHTTP --> Pizzas : 503
+  else 200 JSON valide
+    Ingredients --> ClientHTTP : ingrédient correspondant
+  end
+end
+
+Pizzas -> Pizzas : Transaction locale\nmise à jour pizza/composition
+Pizzas --> Client : 200 ou erreur 404/409/500
 @enduml
