@@ -1,14 +1,46 @@
 services:
   pizzas-api:
-    build: ./pizzas-api
+    build:
+      context: ./pizzas-api
     ports:
       - "${PIZZAS_PORT:-3001}:3001"
-    # TODO : environment, volume nommé, dépendance, contrôle de santé et redémarrage.
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_PATH: /app/data/pizzas.sqlite
+      INGREDIENTS_API_URL: http://ingredients-api:3002
+    volumes:
+      - pizzas-data:/app/data
+    depends_on:
+      ingredients-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 
   ingredients-api:
-    build: ./ingredients-api
+    build:
+      context: ./ingredients-api
     ports:
       - "${INGREDIENTS_PORT:-3002}:3002"
-    # TODO : environment, volume nommé, contrôle de santé et redémarrage.
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DB_PATH: /app/data/ingredients.sqlite
+    volumes:
+      - ingredients-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 
-# TODO : déclarer les deux volumes nommés.
+volumes:
+  pizzas-data:
+  ingredients-data:

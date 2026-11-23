@@ -1,3 +1,31 @@
 @startuml
-' TODO : produire le diagramme demandé dans le README.
+title Déploiement Foodtruck Starter 5
+
+actor "Client HTTP" as client
+
+node "Hôte Docker" as host {
+  node "Réseau Compose (bridge)" as network {
+    node "Conteneur pizzas-api\nNode.js : 3001" as pizzas {
+      artifact "API Pizzas" as pizzasApp
+    }
+
+    node "Conteneur ingredients-api\nNode.js : 3002" as ingredients {
+      artifact "API Ingrédients" as ingredientsApp
+    }
+  }
+
+  folder "Volume pizzas-data\n/app/data" as pizzasVolume
+  folder "Volume ingredients-data\n/app/data" as ingredientsVolume
+}
+
+client --> pizzas : hôte :3001\n→ conteneur :3001
+client --> ingredients : hôte :3002\n→ conteneur :3002
+pizzas --> ingredients : HTTP\nhttp://ingredients-api:3002
+pizzasVolume --> pizzas : SQLite pizzas
+ingredientsVolume --> ingredients : SQLite ingrédients
+
+note right of pizzas
+  Démarre après le healthcheck
+  réussi d'ingredients-api.
+end note
 @enduml
