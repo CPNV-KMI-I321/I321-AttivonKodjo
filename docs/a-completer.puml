@@ -1,3 +1,108 @@
-@startuml
-' TODO : produire le diagramme demandé dans le README.
+@startuml MCD
+hide circle
+skinparam linetype ortho
+
+entity "PIZZA" as PIZZA {
+  * id : entier
+  --
+  nom : texte (unique, sans casse)
+  description : texte
+  prix : réel
+  imageUrl : texte
+}
+
+entity "INGRÉDIENT" as INGREDIENT {
+  * id : entier
+  --
+  nom : texte
+  prix : réel
+}
+
+entity "COMPOSITION" as COMPOSITION {
+  * pizza_id : entier
+  * ingredient_id : entier
+}
+
+PIZZA ||--|{ COMPOSITION : contient
+INGREDIENT ||--o{ COMPOSITION : compose
+@enduml
+
+@startuml MLD
+hide circle
+skinparam linetype ortho
+
+entity "pizzas" as PIZZAS {
+  * id : INTEGER <<PK>>
+  --
+  name : TEXT <<UNIQUE NOCASE>>
+  description : TEXT
+  price : REAL
+  imageUrl : TEXT
+}
+
+entity "ingredients" as INGREDIENTS {
+  * id : INTEGER <<PK>>
+  --
+  name : TEXT
+  price : REAL
+}
+
+entity "pizza_ingredients" as PIZZA_INGREDIENTS {
+  * pizza_id : INTEGER <<PK, FK>>
+  * ingredient_id : INTEGER <<PK, FK>>
+}
+
+PIZZAS ||--|{ PIZZA_INGREDIENTS : "ON DELETE CASCADE"
+INGREDIENTS ||--o{ PIZZA_INGREDIENTS : "ON DELETE RESTRICT"
+note right of PIZZA_INGREDIENTS
+  PK (pizza_id, ingredient_id)
+  FK pizza_id -> pizzas.id
+  FK ingredient_id -> ingredients.id
+end note
+@enduml
+
+@startuml CréationPizza
+actor Client
+participant "Contrôleur pizzas" as Controller
+participant "PizzasService" as Service
+database SQLite
+
+Client -> Controller : POST /api/pizzas\n{name, price, ingredientIds, ...}
+Controller -> Service : create(body)
+Service -> Service : Valider le corps et ingredientIds
+
+alt Données invalides ou composition vide
+  Service --> Controller : erreur 400
+  Controller --> Client : 400 Bad Request
+else Données valides
+  Service -> SQLite : BEGIN IMMEDIATE
+  Service -> SQLite : Recherche du nom (NOCASE)
+  alt Nom déjà utilisé
+    SQLite --> Service : pizza existante
+    Service -> SQLite : ROLLBACK
+    Service --> Controller : erreur 409
+    Controller --> Client : 409 Conflict
+  else Nom disponible
+    Service -> SQLite : Vérifier les ingrédients
+    alt Ingrédient inexistant
+      SQLite --> Service : identifiant absent
+      Service -> SQLite : ROLLBACK
+      Service --> Controller : erreur 400
+      Controller --> Client : 400 Bad Request
+    else Tous les ingrédients existent
+      Service -> SQLite : INSERT pizzas
+      Service -> SQLite : INSERT pizza_ingredients
+      alt Échec SQLite
+        SQLite --> Service : erreur
+        Service -> SQLite : ROLLBACK
+        Service --> Controller : erreur interne
+        Controller --> Client : 500 Internal Server Error
+      else Écritures réussies
+        Service -> SQLite : COMMIT
+        Service --> Controller : pizza avec ingredientIds
+        Controller --> Client : 201 Created + Location
+      end
+    end
+  end
+end
 @enduml

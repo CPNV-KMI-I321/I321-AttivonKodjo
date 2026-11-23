@@ -20,4 +20,11 @@ db.exec(`
     name TEXT NOT NULL,
     price REAL NOT NULL CHECK (price >= 0)
   );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pizzas_name_nocase
+    ON pizzas (name COLLATE NOCASE);
+  CREATE TABLE IF NOT EXISTS pizza_ingredients (
+    pizza_id INTEGER NOT NULL REFERENCES pizzas(id) ON DELETE CASCADE,
+    ingredient_id INTEGER NOT NULL REFERENCES ingredients(id) ON DELETE RESTRICT,
+    PRIMARY KEY (pizza_id, ingredient_id)
+  );
 `);

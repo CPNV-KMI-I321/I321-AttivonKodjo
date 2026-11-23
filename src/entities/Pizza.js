@@ -1,11 +1,17 @@
 import { db } from '../config/database.js';
+import * as PizzaComposition from './PizzaComposition.js';
+
+function withComposition(pizza) {
+  return pizza && { ...pizza, ingredientIds: PizzaComposition.ingredientIds(pizza.id) };
+}
 
 export function findAll() {
-  return db.prepare('SELECT * FROM pizzas ORDER BY id').all();
+  return db.prepare('SELECT * FROM pizzas ORDER BY id').all()
+    .map(withComposition);
 }
 
 export function findById(id) {
-  return db.prepare('SELECT * FROM pizzas WHERE id = ?').get(id);
+  return withComposition(db.prepare('SELECT * FROM pizzas WHERE id = ?').get(id));
 }
 
 export function create({ name, description, price, imageUrl }) {
@@ -26,5 +32,5 @@ export function remove(id) {
 }
 
 export function findByName(name) {
-  throw Object.assign(new Error('TODO : rechercher le nom avec NOCASE'), { status: 501 });
+  return withComposition(db.prepare('SELECT * FROM pizzas WHERE name = ? COLLATE NOCASE').get(name));
 }

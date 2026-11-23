@@ -23,7 +23,7 @@ export function validateIngredient(body) {
 
 export function validatePizza(body) {
   const { name, price } = validateIngredient(body);
-  const { description = '', imageUrl = null } = body;
+  const { description = '', imageUrl = null, ingredientIds } = body;
   if (typeof description !== 'string') fail(400, 'La description doit être un texte.');
   if (imageUrl !== null) {
     try {
@@ -33,7 +33,13 @@ export function validatePizza(body) {
       fail(400, "L'image doit être une URL HTTP ou HTTPS.");
     }
   }
-  return { name: name.trim(), description, price, imageUrl };
+  return {
+    name: name.trim(),
+    description,
+    price,
+    imageUrl,
+    ingredientIds: validateIngredientIds(ingredientIds)
+  };
 }
 
 
